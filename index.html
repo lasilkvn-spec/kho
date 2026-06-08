@@ -6,6 +6,7 @@
 <title>LàSilk — Quản lý kho</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -194,6 +195,29 @@ html, body { height: 100%; background: var(--rose-pale); font-family: 'Inter', s
 .toast { position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 11px 22px; border-radius: 20px; font-size: 13px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 999; white-space: nowrap; max-width: 90vw; text-align: center; letter-spacing: 0.2px; }
 .toast.show { opacity: 1; }
 
+/* ── IN TEM ── */
+.btn-print { width: 100%; margin-top: 10px; background: var(--ink); color: #fff; border: none; padding: 13px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; letter-spacing: 0.2px; display: none; align-items: center; justify-content: center; gap: 8px; }
+.btn-print.show { display: flex; }
+.btn-print:active { background: var(--ink-2); }
+
+.success-flash { background: var(--green-bg); border-radius: var(--r-sm); padding: 10px 14px; font-size: 13px; color: var(--green); font-weight: 500; text-align: center; display: none; margin-bottom: 10px; }
+.success-flash.show { display: block; }
+
+.print-modal-overlay { position: fixed; inset: 0; background: rgba(42,33,24,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; max-width: 480px; margin: 0 auto; }
+.print-modal-overlay.show { display: flex; }
+.print-modal { background: #fff; border-radius: 20px; padding: 24px 20px; width: 100%; }
+.print-modal-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--ink); margin-bottom: 4px; }
+.print-modal-sub { font-size: 13px; color: var(--ink-3); margin-bottom: 20px; }
+.qr-preview-wrap { text-align: center; background: var(--rose-pale); border-radius: var(--r); padding: 20px; margin-bottom: 16px; }
+.qr-preview-wrap canvas { border-radius: 8px; }
+.tem-info-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-3); padding: 6px 0; border-bottom: 1px solid var(--border); }
+.tem-info-row:last-child { border-bottom: none; }
+.tem-info-row strong { color: var(--ink); font-weight: 500; }
+.print-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.btn-print-shoptida { background: var(--rose); color: #fff; border: none; padding: 13px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; }
+.btn-print-img { background: var(--rose-light); color: var(--rose-2); border: none; padding: 13px; border-radius: var(--r); font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'Inter', sans-serif; }
+.btn-close-print { width: 100%; margin-top: 10px; background: none; border: 1px solid var(--border); padding: 11px; border-radius: var(--r); font-size: 14px; color: var(--ink-3); cursor: pointer; font-family: 'Inter', sans-serif; }
+
 /* ── GUIDE ── */
 .step-guide { display: flex; flex-direction: column; gap: 0; }
 .guide-step { display: flex; gap: 14px; padding-bottom: 22px; }
@@ -292,6 +316,11 @@ html, body { height: 100%; background: var(--rose-pale); font-family: 'Inter', s
           <button class="btn-in"  onclick="doTransaction('in')">↑ Nhập kho</button>
           <button class="btn-out" onclick="doTransaction('out')">↓ Xuất kho</button>
         </div>
+        <div class="success-flash" id="success-flash"></div>
+        <button class="btn-print" id="btn-print" onclick="openPrintModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          In tem sản phẩm
+        </button>
       </div>
     </div>
 
@@ -315,26 +344,19 @@ html, body { height: 100%; background: var(--rose-pale); font-family: 'Inter', s
 
     <!-- CÀI ĐẶT -->
     <div id="page-settings" class="page">
-      <div class="section-title" style="margin-bottom:16px">Kết nối Google Sheets</div>
+      <div class="section-title" style="margin-bottom:6px">Kết nối Google Sheets</div>
+      <p style="font-size:13px;color:var(--ink-3);margin-bottom:16px;line-height:1.6">Chỉ cần dán Script URL sau khi Deploy Apps Script là xong — không cần API Key hay Sheet ID.</p>
       <div class="setting-group">
-        <div class="setting-item">
-          <div><div class="setting-label">Sheet ID</div><div class="setting-sub">Lấy từ URL Google Sheet</div></div>
-          <input class="setting-input wide" id="cfg-sheet-id" type="text" placeholder="1BxiMVs0X...">
-        </div>
-        <div class="setting-item">
-          <div><div class="setting-label">API Key</div><div class="setting-sub">Google Sheets API v4</div></div>
-          <input class="setting-input wide" id="cfg-api-key" type="password" placeholder="AIzaSy...">
-        </div>
-        <div class="setting-item">
-          <div><div class="setting-label">Script URL</div><div class="setting-sub">URL sau khi Deploy Apps Script</div></div>
-          <input class="setting-input wide" id="cfg-script-url" type="text" placeholder="https://script.google.com/...">
+        <div class="setting-item" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <div><div class="setting-label">Script URL</div><div class="setting-sub">Lấy từ Apps Script → Deploy → Web App URL</div></div>
+          <input class="setting-input" id="cfg-script-url" type="text" placeholder="https://script.google.com/macros/s/..." style="width:100%">
         </div>
         <div class="setting-item">
           <div><div class="setting-label">Cảnh báo sắp hết</div><div class="setting-sub">Ngưỡng tối thiểu (cái)</div></div>
           <input class="setting-input narrow" id="cfg-threshold" type="number" value="5">
         </div>
       </div>
-      <button class="btn-save" onclick="saveConfig()">Lưu cài đặt</button>
+      <button class="btn-save" onclick="saveConfig()">Lưu & kết nối</button>
       <div style="margin-top:24px;margin-bottom:12px" class="section-title">Chế độ demo</div>
       <div class="setting-group">
         <div class="setting-item">
@@ -348,11 +370,10 @@ html, body { height: 100%; background: var(--rose-pale); font-family: 'Inter', s
     <div id="page-guide" class="page">
       <div class="section-title" style="margin-bottom:20px">Hướng dẫn kết nối</div>
       <div class="step-guide">
-        <div class="guide-step"><div class="guide-num">1</div><div class="guide-body"><h4>Tạo Google Sheet</h4><p>Mở sheets.google.com → tạo file mới. Chạy script <code>setupSheets</code> để tự tạo 2 tab Products và History.</p></div></div>
-        <div class="guide-step"><div class="guide-num">2</div><div class="guide-body"><h4>Lấy Sheet ID</h4><p>Nhìn URL: <code>spreadsheets/d/<strong>[SHEET_ID]</strong>/edit</code> — copy phần in đậm.</p></div></div>
-        <div class="guide-step"><div class="guide-num">3</div><div class="guide-body"><h4>Tạo API Key</h4><p>Vào console.cloud.google.com → bật Google Sheets API → Credentials → Create API Key.</p></div></div>
-        <div class="guide-step"><div class="guide-num">4</div><div class="guide-body"><h4>Deploy Apps Script</h4><p>Extensions → Apps Script → paste code → Deploy → New deployment → Web App → Anyone → copy URL.</p></div></div>
-        <div class="guide-step"><div class="guide-num">5</div><div class="guide-body"><h4>Nhập vào Cài đặt</h4><p>Dán Sheet ID, API Key và Script URL vào tab Cài đặt → Lưu là xong.</p></div></div>
+        <div class="guide-step"><div class="guide-num">1</div><div class="guide-body"><h4>Mở Google Sheet</h4><p>Vào sheets.google.com → mở Sheet đã tạo sẵn → menu <code>Extensions</code> → <code>Apps Script</code>.</p></div></div>
+        <div class="guide-step"><div class="guide-num">2</div><div class="guide-body"><h4>Paste code script</h4><p>Xóa code cũ → paste toàn bộ nội dung file <code>Code.gs</code> → nhấn Save → chọn <code>setupSheets</code> → nhấn Run.</p></div></div>
+        <div class="guide-step"><div class="guide-num">3</div><div class="guide-body"><h4>Deploy Web App</h4><p>Nhấn <code>Deploy</code> → <code>New deployment</code> → Type: Web App → Execute as: Me → Who has access: Anyone → Deploy → copy URL.</p></div></div>
+        <div class="guide-step"><div class="guide-num">4</div><div class="guide-body"><h4>Dán URL vào Cài đặt</h4><p>Paste URL vào ô Script URL ở tab Cài đặt → nhấn Lưu & kết nối → xong!</p></div></div>
       </div>
     </div>
 
@@ -436,7 +457,7 @@ html, body { height: 100%; background: var(--rose-pale); font-family: 'Inter', s
 
 <script>
 const COLORS={'Đen':'#1a1a1a','Trắng':'#e8e4dd','Kem':'#f0e6d3','Đỏ':'#c0392b','Hồng':'#e8a0b0','Caramel':'#c4a882','Xanh Navy':'#1a3a5c','Tím':'#6b5b95'};
-let cfg={sheetId:'',apiKey:'',scriptUrl:'',threshold:5,mode:'demo'};
+let cfg={scriptUrl:'',threshold:5,mode:'demo'};
 let products=[],history=[],currentRole='admin',currentProduct=null,qrScanner=null,scanMode='camera';
 
 function loadDemo(){
@@ -466,28 +487,31 @@ function loadDemo(){
 }
 function fmtTime(d){return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ${d.getDate()}/${d.getMonth()+1}`;}
 
-async function fetchFromSheet(range){
-  if(cfg.mode==='demo')return null;
-  const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${range}?key=${cfg.apiKey}`);
-  if(!r.ok)throw new Error('Sheet error');
-  return(await r.json()).values||[];
+async function callScript(data) {
+  if(cfg.mode==='demo') return null;
+  if(!cfg.scriptUrl) { showToast('Chưa cài Script URL'); return null; }
+  try {
+    const r = await fetch(cfg.scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return await r.json();
+  } catch(e) { showToast('Lỗi kết nối Script'); return null; }
 }
-async function writeToSheet(data){
-  if(cfg.mode==='demo')return;
-  if(!cfg.scriptUrl){showToast('Cần cấu hình Script URL');return;}
-  await fetch(cfg.scriptUrl,{method:'POST',body:JSON.stringify(data)});
-}
+
 async function refreshData(){
   if(cfg.mode==='demo'){renderAll();showToast('Đang dùng demo data');return;}
-  if(!cfg.sheetId||!cfg.apiKey){document.getElementById('setup-banner').style.display='block';showToast('Cần cài đặt Google Sheets trước');return;}
-  showToast('Đang tải...');
-  try{
-    const rows=await fetchFromSheet('Products!A2:G500');
-    if(rows)products=rows.map(r=>({id:r[0]||'',name:r[1]||'',color:r[2]||'',size:r[3]||'',qty:parseInt(r[4])||0,hex:r[5]||COLORS[r[2]]||'#b07d6b'})).filter(p=>p.id);
-    const hrows=await fetchFromSheet('History!A2:G200');
-    if(hrows)history=hrows.reverse().slice(0,100).map(r=>({type:r[1],productId:r[2],name:r[3]||'',meta:r[4]||'',qty:parseInt(r[5])||0,time:r[0]||''}));
-    renderAll();showToast('✓ Đã cập nhật');
-  }catch(e){showToast('Lỗi kết nối Sheet');}
+  if(!cfg.scriptUrl){document.getElementById('setup-banner').style.display='block';showToast('Cần nhập Script URL');return;}
+  showToast('Đang tải dữ liệu...');
+  const res = await callScript({action:'getData'});
+  if(res && res.success){
+    products = res.products || [];
+    history = res.history || [];
+    renderAll();
+    showToast('✓ Đã cập nhật');
+  } else {
+    showToast('Lỗi kết nối Sheet. Kiểm tra lại Script URL.');
+  }
 }
 
 function renderAll(){renderDashboard();renderProducts();renderHistory();populateManualSelect();}
@@ -561,6 +585,8 @@ function selectProduct(p){
   document.getElementById('scan-stock').textContent=`${p.qty} cái`;
   document.getElementById('qty').value=1;
   document.getElementById('scan-result').classList.add('show');
+  document.getElementById('success-flash').classList.remove('show');
+  document.getElementById('btn-print').classList.remove('show');
 }
 function quickScan(id){const p=products.find(x=>x.id===id);if(!p)return;showPage('scan');setScanMode('manual');document.getElementById('manual-product').value=id;selectProduct(p);}
 function adjustQty(d){const inp=document.getElementById('qty');inp.value=Math.max(1,parseInt(inp.value||1)+d);}
@@ -575,8 +601,31 @@ async function doTransaction(type){
   history.unshift(entry);
   document.getElementById('scan-stock').textContent=`${p.qty} cái`;
   renderDashboard();renderHistory();
-  if(cfg.mode!=='demo')await writeToSheet({action:'transaction',...entry,newQty:p.qty});
-  showToast(type==='in'?`✓ Đã nhập ${qty} cái`:`✓ Đã xuất ${qty} cái`);
+  if(cfg.mode!=='demo') await callScript({action:'transaction',...entry,newQty:p.qty});
+
+  // Hiện thông báo thành công
+  const flash = document.getElementById('success-flash');
+  flash.textContent = type==='in' ? `✓ Đã nhập ${qty} cái — tồn kho: ${p.qty}` : `✓ Đã xuất ${qty} cái — tồn kho: ${p.qty}`;
+  flash.classList.add('show');
+
+  // Hiện nút in tem khi nhập kho
+  const printBtn = document.getElementById('btn-print');
+  if(type==='in'){
+    printBtn.classList.add('show');
+  } else {
+    printBtn.classList.remove('show');
+  }
+}
+
+function openPrintModal() {
+  if(!currentProduct) return;
+  const p = currentProduct;
+  const qty = parseInt(document.getElementById('qty').value)||1;
+  const params = new URLSearchParams({
+    id: p.id, name: p.name, color: p.color,
+    size: p.size, hex: p.hex||'#b07d6b', qty: qty
+  });
+  window.open(`print.html?${params.toString()}`, '_blank');
 }
 
 // ===================== IMAGE =====================
@@ -660,7 +709,7 @@ async function saveProduct(){
   products.push(p);
   if(currentImgBase64) saveImgToStorage(id, currentImgBase64);
   renderAll();
-  if(cfg.mode!=='demo')await writeToSheet({action:'addProduct',...p});
+  if(cfg.mode!=='demo') await callScript({action:'addProduct',...p});
   document.getElementById('add-modal').classList.remove('show');
   showToast('✓ Đã thêm sản phẩm');
 }
@@ -676,8 +725,6 @@ function exportExcel(){
 }
 
 function saveConfig(){
-  cfg.sheetId=document.getElementById('cfg-sheet-id').value.trim();
-  cfg.apiKey=document.getElementById('cfg-api-key').value.trim();
   cfg.scriptUrl=document.getElementById('cfg-script-url').value.trim();
   cfg.threshold=parseInt(document.getElementById('cfg-threshold').value)||5;
   localStorage.setItem('lasilk_cfg',JSON.stringify(cfg));
@@ -688,8 +735,6 @@ function loadConfig(){
   const saved=localStorage.getItem('lasilk_cfg');
   if(saved){
     Object.assign(cfg,JSON.parse(saved));
-    document.getElementById('cfg-sheet-id').value=cfg.sheetId||'';
-    document.getElementById('cfg-api-key').value=cfg.apiKey||'';
     document.getElementById('cfg-script-url').value=cfg.scriptUrl||'';
     document.getElementById('cfg-threshold').value=cfg.threshold||5;
   }
